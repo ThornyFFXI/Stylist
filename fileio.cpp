@@ -24,7 +24,6 @@ void Stylist::InitModelInfo()
         return;
     }
 
-    Reader.seekg(0, ios::end);
     long Size  = Reader.tellg();
     char* File = new char[Size + 1];
     Reader.seekg(0, ios::beg);
@@ -123,7 +122,7 @@ void Stylist::InitModelInfo()
                     if ((attr1) && (attr2))
                     {
                         uint16_t modelMod = (uint16_t)atoi(attr1->value());
-                        modelMod += (4096 << table);
+                        modelMod += (4096 * (table + 1));
                         mModelInfo.Equip[table].insert(std::make_pair((uint16_t)atoi(attr2->value()), modelMod));
                     }
                 }
@@ -160,28 +159,28 @@ void Stylist::LoadSettings(const char* fileName)
 
     std::ifstream inputStream;
     sprintf_s(buffer, 1024, "%s", fileName);
-    inputStream = ifstream(buffer);
+    inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
     if (!inputStream.is_open())
     {
         sprintf_s(buffer, 1024, "%s.xml", fileName);
-        inputStream = ifstream(buffer);
+        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
     }
     if (!inputStream.is_open())
     {
         sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s", m_AshitaCore->GetInstallPath(), fileName);
-        inputStream = ifstream(buffer);
+        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
     }
     if (!inputStream.is_open())
     {
         sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s.xml", m_AshitaCore->GetInstallPath(), fileName);
-        inputStream = ifstream(buffer);
+        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
     }
     if (!inputStream.is_open())
     {
         if (strcmp(fileName, "settings.xml") == 0)
         {
             SaveSettings("settings.xml");
-            sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath(), fileName);
+            sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
             mState.currentSettings = buffer;
         }
         else
@@ -192,7 +191,6 @@ void Stylist::LoadSettings(const char* fileName)
         return;
     }
 
-    inputStream.seekg(0, ios::end);
     long Size  = inputStream.tellg();
     char* File = new char[Size + 1];
     inputStream.seekg(0, ios::beg);

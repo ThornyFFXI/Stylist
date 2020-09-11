@@ -28,9 +28,6 @@
 
 #define CheckArg(a, b) (argcount > a) && (_stricmp(args[a].c_str(), b) == 0)
 
-//When in overrides, flag 0x01 means write the slot.
-//When in real values, flag 0x01 means the slot was already written by an override.
-
 struct singleFilter_t
 {
     uint16_t Model;
