@@ -1,4 +1,4 @@
-#Stylist
+# Stylist
 
 Stylist is a plugin that allows you to customize any player character’s appearance quickly from a command line.  It can also be used to prevent character ‘blinking’ in a similar manner to GearLock from Ashita3.  Some notes:
 
@@ -36,47 +36,47 @@ Stylist is a plugin that allows you to customize any player character’s appear
 ### Commands
 All commands can be prefixed with /sl or /stylist.  You may also configure stylist via XML directly.
 
-* /sl blink
+* /sl blink<br>
 Triggers all characters who are outdated to blink to their current equipment, with any specified filters.
 
-* /sl self [Optional: On/Off]
+* /sl self [Optional: On/Off]<br>
 When enabled, prevents you from blinking except when adding or removing filters or using /sl blink.
 
-* /sl target [Optional: On/Off]
+* /sl target [Optional: On/Off]<br>
 When enabled, prevents your current target from blinking except when adding or removing filters or using /sl blink.
 
-* /sl others [Optional: On/Off]
+* /sl others [Optional: On/Off]<br>
 When enabled, prevents all players from blinking except when adding or removing filters or using /sl blink.
 
-* /sl add [Required: Character Name] [Required: Equipment Slot] [Required: Model]
-Adds a filter, forcing the specified slot to show the specified model for the speccified character instead of what they actually have equipped.
+* /sl add [Required: Character Name] [Required: Equipment Slot] [Required: Model]<br>
+Adds a filter, forcing the specified slot to show the specified model for the specified character instead of what they actually have equipped.
 
-* /sl remove [Required: Character Name] [Required: Equipment Slot]
+* /sl remove [Required: Character Name] [Required: Equipment Slot]<br>
 Removes a filter, allowing the specified character to display their real equipment in the specified slot.
 
-* /sl addmodel [Required: Equipment Slot] [Required: Initial Model] [Required: Target Model]
+* /sl addmodel [Required: Equipment Slot] [Required: Initial Model] [Required: Target Model]<br>
 Adds a global model filter, changing the initial model to the target model for all characters.
 
-* /sl removemodel [Required: Equipment Slot] [Required: Initial Model]
+* /sl removemodel [Required: Equipment Slot] [Required: Initial Model]<br>
 Removes a global model filter.
 
-* /sl addmodelc [Required: Character Name] [Required: Equipment Slot] [Required: Initial Model] [Required: Target Model]
+* /sl addmodelc [Required: Character Name] [Required: Equipment Slot] [Required: Initial Model] [Required: Target Model]<br>
 Adds a character-specific model filter, changing the initial model to the target model for only the specified character.
 
-* /sl removemodelc [Required: Character Name] [Required: Equipment Slot] [Required: Initial Model]
+* /sl removemodelc [Required: Character Name] [Required: Equipment Slot] [Required: Initial Model]<br>
 Removes a character-specific model filter.
 
-* /sl clear [Required: Character Name]
+* /sl clear [Required: Character Name]<br>
 Removes all filters and model filters for the specified character, allowing them to show their real equipment.  Global model filters will still apply.
 
-* /sl load [Optional: Filename]
+* /sl load [Optional: Filename]<br>
 Loads a configuration XML.  If Filename is not specified, reloads current configuration XML.
 
-* /sl reload
+* /sl reload<br>
 Reloads the current configuration XML from disk.
 
-* /sl newconfig [Required: Filename]
+* /sl newconfig [Required: Filename]<br>
 Creates a new configuration XML on disk and loads it.  This will return you to default settings.  If you are trying to save your settings, use /sl export.
 
-* /sl export [Optional: Filename]
+* /sl export [Optional: Filename]<br>
 Saves the current configuration to a configuration XML. 
