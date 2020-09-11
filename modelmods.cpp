@@ -1,186 +1,45 @@
 #include "Stylist.h"
 
-void Stylist::ApplyModelChanges(appearance_t* appearance, uint16_t index, std::string pName)
+void Stylist::HandleModelPacket(modelPointers_t pointers, uint16_t index, std::string pName)
 {
-    //Check if PC is already rendered.
+    //Save our values to the table.
+    mState.RealEquip[index] = getValues(pointers);
+
+    //Check if the character is already rendered.
     bool isRendered = IsEntityRendered(index);
 
-    //Look up the character's name, so we can check our config.
-    std::map<std::string, charmask_t>::iterator iter;
+    //If the character is already drawn, check if we need to block blinks for them.
+    if (isRendered)
+    {
+        if (CheckBlinkBlock(index))
+        {
+            //If we're blocking blink, we can't apply any filters without forcing a blink, so we're done.
+            ApplyBlinkBlock(index, pointers);
+            return;
+        }
+    }
+
+    //Look up the character's name, so we can see if they have a mask in config.
+    std::map<std::string, charMask_t>::iterator iter;
     if (pName.length() >= 3)
-        iter  = mSettings.CharOverrides.find(pName);
+        iter = mSettings.CharOverrides.find(pName);
     else if (isRendered)
         iter = mSettings.CharOverrides.find(std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(index)));
 
-    //If we found an entry for the char, process and mark overrides.
+    //Create a blank mask in case we didn't find it.
+    charMask_t mask;
+    //If we found an entry for the char, record that.
     if (iter != mSettings.CharOverrides.end())
-    {
-        if (iter->second.Override[0])
-            appearance->Race = (uint8_t)iter->second.Params[0];
+        mask = iter->second;
 
-        if (iter->second.Override[1])
-            appearance->Face = (uint8_t)iter->second.Params[1];
-
-        for (int x = 2; x < 10; x++)
-        {
-            if (iter->second.Override[x])
-                appearance->Equip[x - 2] = (uint16_t)iter->second.Params[x];
-        }
-    }
-
-    //If we don't have to block blinks, we're done here.
-    if (!CheckBlinkBlock(index))
-        return;
-
-    appearance->Face = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookHair(index);
-    appearance->Race = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(index);
-    appearance->Equip[0] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookHead(index);
-    appearance->Equip[1] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookBody(index);
-    appearance->Equip[2] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookHands(index);
-    appearance->Equip[3] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookLegs(index);
-    appearance->Equip[4] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookFeet(index);
-    appearance->Equip[5] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookMain(index);
-    appearance->Equip[6] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookSub(index);
-    appearance->Equip[7] = m_AshitaCore->GetMemoryManager()->GetEntity()->GetLookRanged(index);
+    //Apply filters.
+    ApplyModelChanges(pointers, mask, getValues(pointers));
 }
-void Stylist::SaveInitialModels()
-{
-    for (int x = 0x400; x < 0x700; x++)
-    {
-        if (!IsEntityRendered(x))
-            continue;
-
-        //Pull real appearance from memory.
-        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
-        uint16_t* initialAppearance     = (uint16_t*)((uint8_t*)entity + offsetof(Ashita::FFXI::entity_t, Look));
-
-        //Add it to our table.
-        appearance_t model;
-        model.Race = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(x);
-        model.Face = initialAppearance[0];
-        for (int x = 0; x < 8; x++)
-        {
-            model.Equip[x] = initialAppearance[x + 1];
-        }
-
-        mRealEquipValues[x] = model;
-    }
-}
-void Stylist::UpdateAllModels(bool ForceRealModel)
-{
-    for (int x = 0x400; x < 0x700; x++)
-    {
-        if (!IsEntityRendered(x))
-            continue;
-        
-        //Pull real appearance from memory.
-        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
-        uint16_t* entityAppearance = (uint16_t*)((uint8_t*)entity + offsetof(Ashita::FFXI::entity_t, Look));
-        uint8_t targetRace             = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(x);
-        uint16_t targetAppearance[9];
-        for (int x = 0; x < 9; x++)
-            targetAppearance[x] = entityAppearance[x];
-
-        //If we have a stored packet for a more recent appearance, override with that.
-        std::map<uint16_t, appearance_t>::iterator iter = mRealEquipValues.find(x);
-        if (iter != mRealEquipValues.end())
-        {
-            targetRace          = iter->second.Race;
-            targetAppearance[0] = iter->second.Face;
-            for (int x = 0; x < 8; x++)
-                targetAppearance[x + 1] = iter->second.Equip[x];
-        }
-
-        if (!ForceRealModel)
-        {
-            //If we have settings that determine a character should be wearing something else, override further with that.
-            std::map<std::string, charmask_t>::iterator iter2 = mSettings.CharOverrides.find(std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(x)));
-            if (iter2 != mSettings.CharOverrides.end())
-            {
-                if (iter2->second.Override[0])
-                    targetRace = (uint8_t)iter2->second.Params[0];
-
-                if (iter2->second.Override[1])
-                    targetAppearance[0] = (uint8_t)iter2->second.Params[1];
-
-                for (int x = 2; x < 10; x++)
-                {
-                    if (iter2->second.Override[x])
-                        targetAppearance[x - 1] = (uint16_t)iter2->second.Params[x];
-                }
-            }
-        }
-
-        //If the appearance we want doesn't match the entity's current appearance, write it and force a blink.
-        if ((memcmp(entityAppearance, &targetAppearance, 18) != 0) || (m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(x) != targetRace))
-        {
-            memcpy(entityAppearance, &targetAppearance, 18);
-            m_AshitaCore->GetMemoryManager()->GetEntity()->SetRace(x, targetRace);
-            *((uint8_t*)entity + offsetof(Ashita::FFXI::entity_t, ModelUpdateFlags)) = 1;
-        }
-    }
-}
-void Stylist::UpdateOneModel(std::string name)
-{
-    for (int x = 0x400; x < 0x700; x++)
-    {
-        if (!IsEntityRendered(x))
-            continue;
-        if (std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(x)) != name)
-            continue;
-
-        //Pull real appearance from memory.
-        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
-        uint16_t* entityAppearance     = (uint16_t*)((uint8_t*)entity + offsetof(Ashita::FFXI::entity_t, Look));
-        uint8_t targetRace             = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(x);
-        uint16_t targetAppearance[9];
-        for (int x = 0; x < 9; x++)
-            targetAppearance[x] = entityAppearance[x];
-
-        //If we have a stored packet for a more recent appearance, override with that.
-        std::map<uint16_t, appearance_t>::iterator iter = mRealEquipValues.find(x);
-        if (iter != mRealEquipValues.end())
-        {
-            targetRace          = iter->second.Race;
-            targetAppearance[0] = iter->second.Face;
-            for (int x = 0; x < 8; x++)
-                targetAppearance[x + 1] = iter->second.Equip[x];
-        }
-
-        //If we have settings that determine a character should be wearing something else, override further with that.
-        std::map<std::string, charmask_t>::iterator iter2 = mSettings.CharOverrides.find(std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(x)));
-        if (iter2 != mSettings.CharOverrides.end())
-        {
-            if (iter2->second.Override[0])
-                targetRace = (uint8_t)iter2->second.Params[0];
-
-            if (iter2->second.Override[1])
-                targetAppearance[0] = (uint8_t)iter2->second.Params[1];
-
-            for (int x = 2; x < 10; x++)
-            {
-                if (iter2->second.Override[x])
-                    targetAppearance[x - 1] = (uint16_t)iter2->second.Params[x];
-            }
-        }
-
-        //If the appearance we want doesn't match the entity's current appearance, write it and force a blink.
-        if ((memcmp(entityAppearance, &targetAppearance, 18) != 0) || (m_AshitaCore->GetMemoryManager()->GetEntity()->GetRace(x) != targetRace))
-        {
-            memcpy(entityAppearance, &targetAppearance, 18);
-            m_AshitaCore->GetMemoryManager()->GetEntity()->SetRace(x, targetRace);
-            *((uint8_t*)entity + offsetof(Ashita::FFXI::entity_t, ModelUpdateFlags)) = 1;
-        }
-        return;
-    }
-}
-void Stylist::StoreRealValues(appearance_t * appearance, uint16_t index)
-{
-    mRealEquipValues[index] = *appearance;
-}
-
 bool Stylist::CheckBlinkBlock(uint16_t index)
 {
+    if (!IsEntityRendered(index))
+        return false;
+
     if (index == m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0))
         return mSettings.NoBlinkSelf;
 
@@ -192,6 +51,152 @@ bool Stylist::CheckBlinkBlock(uint16_t index)
         return mSettings.NoBlinkTarget;
 
     return mSettings.NoBlinkOthers;
+}
+void Stylist::ApplyBlinkBlock(uint16_t index, modelPointers_t pointers)
+{
+    //Get a pointer to entity and use it to pull current appearance.
+    Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(index);
+    modelValues_t currentValues = getValues(modelPointers_t(entity));
+
+    //Write current appearance
+    pointers.Write(currentValues);
+}
+void Stylist::ApplyModelChanges(modelPointers_t pointers, charMask_t overrides, modelValues_t realValues)
+{
+    //Start with our most current values for what the slot actually contains.
+    modelValues_t workingValues = realValues;
+
+    //Apply character-specific slot overrides.
+    for (int x = 0; x < 10; x++)
+    {
+        if (overrides.SlotMasks[x].Override)
+            workingValues.Values[x] = overrides.SlotMasks[x].Value;
+    }
+    
+    /*
+    * Apply model filters.  Note that we check against real values, because these take priority over generic character mappings.
+    * We check if there is a character specific model mapping first, then we check for a global model mapping.
+    */
+    for (int x = 0; x < 10; x++)
+    {
+        std::map<uint16_t, singleFilter_t>::iterator iter = overrides.ModelFilters[x].find(realValues.Values[x]);
+        if (iter != overrides.ModelFilters[x].end())
+        {
+            workingValues.Values[x] = iter->second.Model;
+            continue;
+        }
+        iter = mSettings.ModelFilters[x].find(realValues.Values[x]);
+        if (iter != mSettings.ModelFilters[x].end())
+            workingValues.Values[x] = iter->second.Model;
+    }
+
+    //Write our finished values to the actual packet/entity.
+    if (pointers != workingValues)
+    {
+        pointers.Write(workingValues);
+    }
+}
+
+void Stylist::InitializeState()
+{
+    uint16_t myIndex = m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0);
+    if (myIndex > 0)
+    {
+        if (IsEntityRendered(myIndex))
+        {
+            mState.myIndex = myIndex;
+            mState.myName  = m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(myIndex);
+        }
+    }
+
+    for (uint16_t x = 0x400; x < 0x700; x++)
+    {
+        if (!IsEntityRendered(x))
+            continue;
+
+
+
+        //Pull real appearance from memory.
+        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
+        mState.RealEquip[x]            = getValues(modelPointers_t(entity));
+    }
+}
+void Stylist::UpdateAllModels(bool ForceRealModel)
+{
+    for (int x = 0x400; x < 0x700; x++)
+    {
+        if (!IsEntityRendered(x))
+            continue;
+        
+        //Pull real appearance from memory.
+        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
+        modelPointers_t pointers       = modelPointers_t(entity);
+        modelValues_t values           = getValues(pointers);
+
+        //Check our internal database, if we have a stored packet it's more reliable than current memory so apply it.
+        std::map<uint16_t, modelValues_t>::iterator iter = mState.RealEquip.find(x);
+        if (iter != mState.RealEquip.end())
+            values = iter->second;
+
+        //If we're forcing everything back to real models during an unload, this is all we need.
+        if (ForceRealModel)
+        {
+            if (pointers != values)
+            {
+                pointers.Write(values);
+            }
+            continue;
+        }
+
+        //Look up the character's name, so we can see if they have a mask in config.
+        std::map<std::string, charMask_t>::iterator iter2 = mSettings.CharOverrides.find(std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(x)));
+
+        //Create a blank mask in case they don't have one.
+        charMask_t mask;
+
+        //If we found an entry for the char, use it.
+        if (iter2 != mSettings.CharOverrides.end())
+            mask = iter2->second;
+        
+        //Apply our model changes.
+        ApplyModelChanges(pointers, mask, values);
+    }
+}
+void Stylist::UpdateOneModel(std::string name, charMask_t mask)
+{
+    for (int x = 0x400; x < 0x700; x++)
+    {
+        if (!IsEntityRendered(x))
+            continue;
+        if (std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(x)) != name)
+            continue;
+
+        //Pull real appearance from memory.
+        Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);
+        modelPointers_t pointers       = modelPointers_t(entity);
+        modelValues_t values           = getValues(entity);
+
+        //Check our internal database, if we have a stored packet it's more reliable than current memory so apply it.
+        std::map<uint16_t, modelValues_t>::iterator iter = mState.RealEquip.find(x);
+        if (iter != mState.RealEquip.end())
+            values = iter->second;
+
+        //Apply our model changes.
+        ApplyModelChanges(pointers, mask, values);
+        return;
+    }
+}
+
+modelValues_t Stylist::getValues(modelPointers_t pointers)
+{
+    modelValues_t ret;
+    ret.Values[0] = *(pointers.Race);
+    ret.Values[1] = *(pointers.Face);
+    for (int x = 0; x < 8; x++)
+    {
+        ret.Values[x + 2] = pointers.Equip[x];
+    }
+    return ret;
 }
 
 bool Stylist::IsEntityRendered(uint16_t index)

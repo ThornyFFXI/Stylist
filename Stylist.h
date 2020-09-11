@@ -13,9 +13,9 @@
 class Stylist : IPlugin
 {
 public:
-    std::map<uint16_t, appearance_t> mRealEquipValues;
     modelinfo_t mModelInfo;
     settings_t mSettings;
+    state_t mState;
     OutputHelpers* pOutput;
 
 public:
@@ -37,7 +37,7 @@ public:
     }
     double GetVersion(void) const override
     {
-        return 1.00f;
+        return 1.01f;
     }
     int32_t GetPriority(void) const override
     {
@@ -59,8 +59,8 @@ public:
 
     //fileio.cpp
     void InitModelInfo();
-    void LoadSettings();
-    void SaveSettings();
+    void LoadSettings(const char* fileName);
+    std::string SaveSettings(const char* fileName);
 
     //models.cpp
     std::string GetSlotString(uint8_t slot);
@@ -70,12 +70,14 @@ public:
     std::string FormatName(std::string name);
 
     //modelmods.cpp
-    void ApplyModelChanges(appearance_t* appearance, uint16_t index, std::string pName);
-    void SaveInitialModels();
+    void HandleModelPacket(modelPointers_t pointers, uint16_t index, std::string pName);
+    void ApplyBlinkBlock(uint16_t index, modelPointers_t pointers);
+    void ApplyModelChanges(modelPointers_t pointers, charMask_t overrides, modelValues_t realValues);
+    void InitializeState();
     void UpdateAllModels(bool ForceRealModel);
-    void UpdateOneModel(std::string name);
-    void StoreRealValues(appearance_t* appearance, uint16_t index);
+    void UpdateOneModel(std::string name, charMask_t mask);
     bool CheckBlinkBlock(uint16_t index);
+    modelValues_t getValues(modelPointers_t pointers);
     bool IsEntityRendered(uint16_t index);
 };
 #endif

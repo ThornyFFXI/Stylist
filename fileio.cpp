@@ -122,7 +122,9 @@ void Stylist::InitModelInfo()
                     xml_attribute<>* attr2 = SubNode->first_attribute("itemid");
                     if ((attr1) && (attr2))
                     {
-                        mModelInfo.Equip[table].insert(std::make_pair((uint16_t)atoi(attr2->value()), (uint16_t)atoi(attr1->value())));
+                        uint16_t modelMod = (uint16_t)atoi(attr1->value());
+                        modelMod += (4096 << table);
+                        mModelInfo.Equip[table].insert(std::make_pair((uint16_t)atoi(attr2->value()), modelMod));
                     }
                 }
             }
@@ -132,14 +134,14 @@ void Stylist::InitModelInfo()
     delete[] File;
     delete XMLReader;
 }
-void Stylist::LoadSettings()
+void Stylist::LoadSettings(const char* fileName)
 {
     //Reset settings.
     mSettings = settings_t();
 
     //Create path to settings XML.
     char buffer[1024];
-    sprintf_s(buffer, 1024, "%s\\config\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
+    sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
 
     //Ensure directories exist, making them if not.
     string makeDirectory(buffer);
@@ -156,27 +158,47 @@ void Stylist::LoadSettings()
         nextDirectory = makeDirectory.find("\\", nextDirectory + 1);
     }
 
-    //If settings XML doesn't exist, write default settings to a blank file for next time.
-    if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(buffer))
+    std::ifstream inputStream;
+    sprintf_s(buffer, 1024, "%s", fileName);
+    inputStream = ifstream(buffer);
+    if (!inputStream.is_open())
     {
-        SaveSettings();
+        sprintf_s(buffer, 1024, "%s.xml", fileName);
+        inputStream = ifstream(buffer);
+    }
+    if (!inputStream.is_open())
+    {
+        sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s", m_AshitaCore->GetInstallPath(), fileName);
+        inputStream = ifstream(buffer);
+    }
+    if (!inputStream.is_open())
+    {
+        sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s.xml", m_AshitaCore->GetInstallPath(), fileName);
+        inputStream = ifstream(buffer);
+    }
+    if (!inputStream.is_open())
+    {
+        if (strcmp(fileName, "settings.xml") == 0)
+        {
+            SaveSettings("settings.xml");
+            sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath(), fileName);
+            mState.currentSettings = buffer;
+        }
+        else
+        {
+            pOutput->error_f("Failed to read file.  Loading defaults.  [$H%s$R]", buffer);
+            LoadSettings("settings.xml");
+        }
         return;
     }
 
-    std::ifstream Reader(buffer, ios::in | ios::binary | ios::ate);
-    if (!Reader.is_open())
-    {
-        pOutput->error_f("Failed to read file.  [$H%s$R]", buffer);
-        return;
-    }
-
-    Reader.seekg(0, ios::end);
-    long Size  = Reader.tellg();
+    inputStream.seekg(0, ios::end);
+    long Size  = inputStream.tellg();
     char* File = new char[Size + 1];
-    Reader.seekg(0, ios::beg);
-    Reader.read(File, Size);
-    Reader.close();
-    File[Size] = '\0';
+    inputStream.seekg(0, ios::beg);
+    inputStream.read(File, Size);
+    inputStream.close();
+    File[Size]             = '\0';
 
     xml_document<>* XMLReader = new xml_document<>();
     try
@@ -200,6 +222,7 @@ void Stylist::LoadSettings()
         delete[] File;
         return;
     }
+    mState.currentSettings = buffer;
 
     xml_node<>* Node = XMLReader->first_node("stylist");
     if (Node)
@@ -235,23 +258,67 @@ void Stylist::LoadSettings()
                 continue;
 
             std::string name(FormatName(attr->value()));
-            charmask_t mask = {0};
+            charMask_t mask;
 
             for (xml_node<>* SubNode = Node->first_node(); SubNode; SubNode = SubNode->next_sibling())
             {
-                uint8_t slot = GetModelTable(SubNode->name());
+                if (_stricmp(SubNode->name(), "filter") == 0)
+                {
+                    attr = SubNode->first_attribute("item");
+                    xml_attribute<>* attr2 = SubNode->first_attribute("slot");
+                    if (attr && attr2)
+                    {
+                        uint8_t slot = GetModelTable(attr2->value());
+                        if (slot == UINT8_MAX)
+                            continue;
+
+                        uint16_t model = GetModelId(slot, attr->value());
+                        if (model == UINT16_MAX)
+                            continue;
+
+                        uint16_t targetmodel = GetModelId(slot, SubNode->value());
+                        if (targetmodel == UINT16_MAX)
+                            continue;
+
+                        (mask.ModelFilters[slot])[model] = singleFilter_t(targetmodel, attr->value(), SubNode->value());
+                    }
+                }
+                else
+                {
+                    uint8_t slot = GetModelTable(SubNode->name());
+                    if (slot == UINT8_MAX)
+                        continue;
+
+                    uint16_t model = GetModelId(slot, SubNode->value());
+                    if (model == UINT16_MAX)
+                        continue;
+
+                    mask.SlotMasks[slot] = singleMask_t(true, model, SubNode->value());
+                }
+            }
+            mSettings.CharOverrides.insert(std::make_pair(name, mask));
+        }
+
+        else if (_stricmp(Node->name(), "filter") == 0)
+        {
+            xml_attribute<>* attr                   = Node->first_attribute("item");
+            xml_attribute<>* attr2 = Node->first_attribute("slot");
+            if (attr && attr2)
+            {
+                uint8_t slot = GetModelTable(attr2->value());
                 if (slot == UINT8_MAX)
                     continue;
 
-                uint16_t model = GetModelId(slot, SubNode->value());
+                uint16_t model = GetModelId(slot, attr->value());
                 if (model == UINT16_MAX)
                     continue;
 
-                mask.Override[slot] = true;
-                mask.Params[slot]   = model;
-                mask.String[slot]   = SubNode->value();
+                uint16_t targetmodel = GetModelId(slot, Node->value());
+                if (targetmodel == UINT16_MAX)
+                    continue;
+
+                (mSettings.ModelFilters[slot])[model] = singleFilter_t(targetmodel, attr->value(), Node->value());
             }
-            mSettings.CharOverrides.insert(std::make_pair(name, mask));
         }
     }
 
@@ -259,16 +326,20 @@ void Stylist::LoadSettings()
     delete XMLReader;
 }
 
-void Stylist::SaveSettings()
+std::string Stylist::SaveSettings(const char* fileName)
 {
     char buffer[1024];
-    sprintf_s(buffer, 1024, "%s\\config\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
+    if (strstr(fileName, ".") == fileName + (strlen(fileName) - 4))
+        sprintf_s(buffer, 1024, "%s\\config\\stylist\\%s", m_AshitaCore->GetInstallPath(), fileName);
+    else
+        sprintf_s(buffer, 1024, "%s\\config\\stylist\\%s.xml", m_AshitaCore->GetInstallPath(), fileName);
 
     ofstream outstream(buffer);
     if (!outstream.is_open())
     {
-        pOutput->error_f("Failed to write file.  [%s]", buffer);
-        return;
+        pOutput->error_f("Failed to write file.  Loading defaults.  [%s]", buffer);
+        LoadSettings("settings.xml");
+        return mState.currentSettings;
     }
 
     outstream << "<stylist>\n";
@@ -293,22 +364,39 @@ void Stylist::SaveSettings()
     outstream << "</noblinkothers>\n";
     outstream << "\t</settings>\n\n";
 
-    for (std::map<std::string, charmask_t>::iterator iter = mSettings.CharOverrides.begin(); iter != mSettings.CharOverrides.end(); iter++)
+    for (std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.begin(); iter != mSettings.CharOverrides.end(); iter++)
     {
         outstream << "\t<player name=\"" << iter->first << "\">\n";
 
         for (int x = 0; x < 10; x++)
         {
-            if (!iter->second.Override[x])
+            if (!iter->second.SlotMasks[x].Override)
                 continue;
 
-            outstream << "\t\t<" << GetSlotString(x) << ">" << iter->second.String[x] << "</" << GetSlotString(x) << ">\n";
+            outstream << "\t\t<" << GetSlotString(x) << ">" << iter->second.SlotMasks[x].Text << "</" << GetSlotString(x) << ">\n";
         }
 
-        outstream << "\t</player>\n";    
+        for (int x = 0; x < 10; x++)
+        {
+            for (std::map<uint16_t, singleFilter_t>::iterator iter2 = iter->second.ModelFilters[x].begin(); iter2 != iter->second.ModelFilters[x].end(); iter2++)
+            {
+                outstream << "\t\t<filter item=\"" << iter2->second.Initial << "\" slot=\"" << GetSlotString(x) << "\">" << iter2->second.Target << "</filter>\n";
+            }
+        }
+
+        outstream << "\t</player>\n\n";    
+    }
+
+    for (int x = 0; x < 10; x++)
+    {
+        for (std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.ModelFilters[x].begin(); iter != mSettings.ModelFilters[x].end(); iter++)
+        {
+            outstream << "\t\t<filter item=\"" << iter->second.Initial << "\" slot=\"" << GetSlotString(x) << "\">" << iter->second.Target << "</filter>\n";
+        }
     }
 
     outstream << "</stylist>";
     outstream.close();
     pOutput->message_f("Wrote settings XML. [$H%s$R]", buffer);
+    return buffer;
 }

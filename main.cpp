@@ -19,8 +19,8 @@ bool Stylist::Initialize(IAshitaCore* core, ILogManager* logger, const uint32_t 
     m_PluginId = id;
     pOutput      = new OutputHelpers(core, logger, this->GetName());
     InitModelInfo();
-    LoadSettings();
-    SaveInitialModels();
+    LoadSettings("settings.xml");
+    InitializeState();
     UpdateAllModels(false);
 
     return true;
@@ -103,23 +103,27 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
                 return true;
             }
 
-            std::map<std::string, charmask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
+            //Create our mask.
+            singleMask_t newMask;
+            newMask.Override                                  = true;
+            newMask.Value                                     = model;
+            newMask.Text                                      = args[4];
+
+            //Save our mask and update our model.
+            std::map<std::string, charMask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
             if (iter2 != mSettings.CharOverrides.end())
             {
-                iter2->second.Override[slot] = true;
-                iter2->second.Params[slot]   = model;
-                iter2->second.String[slot]   = args[4];
+                iter2->second.SlotMasks[slot] = newMask;
+                UpdateOneModel(name, iter2->second);
             }
             else
             {
-                charmask_t newMask = {0};
-                newMask.Override[slot] = true;
-                newMask.Params[slot]       = model;
-                newMask.String[slot] = args[4];
-                mSettings.CharOverrides.insert(std::make_pair(name, newMask));
+                charMask_t newChar;
+                newChar.SlotMasks[slot]    = newMask;
+                mSettings.CharOverrides.insert(std::make_pair(name, newChar));
+                UpdateOneModel(name, newChar);
             }
 
-            UpdateOneModel(name);
             pOutput->message("Filter added.");
         }
 
@@ -138,13 +142,160 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
                 return true;
             }
 
-            std::map<std::string, charmask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
+            std::map<std::string, charMask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
             if (iter2 != mSettings.CharOverrides.end())
             {
-                iter2->second.Override[slot] = false;
-                iter2->second.Params[slot]   = 0;
+                iter2->second.SlotMasks[slot] = singleMask_t();
                 pOutput->message("Filter removed.");
-                UpdateOneModel(name);
+                UpdateOneModel(name, iter2->second);
+            }
+            else
+            {
+                pOutput->message("Filter did not exist.");
+            }
+        }
+
+        else if (CheckArg(1, "addmodel"))
+        {
+            if (argcount < 5)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl addmodel [Slot] [Initial Model] [Target Model].");
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[2]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[2].c_str());
+                return true;
+            }
+            uint16_t model = GetModelId(slot, args[3]);
+            if (model == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[3].c_str());
+                return true;
+            }
+            uint16_t newModel = GetModelId(slot, args[4]);
+            if (newModel == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[4].c_str());
+                return true;
+            }
+
+            //Add to settings.
+            (mSettings.ModelFilters[slot])[model] = singleFilter_t(newModel, args[3], args[4]);
+            UpdateAllModels(false);
+            pOutput->message("Filter added.");
+        }
+
+        else if (CheckArg(1, "removemodel"))
+        {
+            if (argcount < 4)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl removemodel [Slot] [Model].");
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[2]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[2].c_str());
+                return true;
+            }
+            uint16_t model = GetModelId(slot, args[3]);
+            if (model == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[3].c_str());
+                return true;
+            }
+            std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.ModelFilters[slot].find(model);
+            if (iter != mSettings.ModelFilters[slot].end())
+            {
+                mSettings.ModelFilters->erase(iter);
+                UpdateAllModels(false);
+                pOutput->message("Filter removed.");
+            }
+            else
+            {
+                pOutput->message("Filter did not exist.");
+            }
+        }
+
+        else if (CheckArg(1, "addmodelc"))
+        {
+            if (argcount < 5)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl addmodelc [Name] [Slot] [Initial Model] [Target Model].");
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[3]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[3].c_str());
+                return true;
+            }
+            uint16_t model = GetModelId(slot, args[4]);
+            if (model == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[4].c_str());
+                return true;
+            }
+            uint16_t newModel = GetModelId(slot, args[5]);
+            if (newModel == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[5].c_str());
+                return true;
+            }
+
+            singleFilter_t newFilter = singleFilter_t(newModel, args[4], args[5]);
+            
+            std::string name(FormatName(args[2]));
+            std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.find(name);
+            if (iter == mSettings.CharOverrides.end())
+            {
+                charMask_t mask;
+                (mask.ModelFilters[slot])[model] = newFilter;
+                mSettings.CharOverrides[name]    = mask;
+            }
+            else
+            {
+                (iter->second.ModelFilters[slot])[model] = newFilter;
+            }
+
+            UpdateAllModels(false);
+            pOutput->message("Filter added.");
+        }
+
+        else if (CheckArg(1, "removemodelc"))
+        {
+            if (argcount < 4)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl removemodelc [Name] [Slot] [Model].");
+                return true;
+            }
+            std::string name(FormatName(args[2]));
+            std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.find(name);
+            if (iter == mSettings.CharOverrides.end())
+            {
+                pOutput->error_f("Invalid char specified. [$H%s$R]", args[2].c_str());
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[3]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[3].c_str());
+                return true;
+            }
+            uint16_t model = GetModelId(slot, args[4]);
+            if (model == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[4].c_str());
+                return true;
+            }
+            std::map<uint16_t, singleFilter_t>::iterator iter2 = iter->second.ModelFilters[slot].find(model);
+            if (iter2 != iter->second.ModelFilters[slot].end())
+            {
+                iter->second.ModelFilters->erase(iter2);
+                UpdateAllModels(false);
+                pOutput->message("Filter removed.");
             }
             else
             {
@@ -161,12 +312,12 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             }
             std::string name(FormatName(args[2]));
 
-            std::map<std::string, charmask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
+            std::map<std::string, charMask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
             if (iter2 != mSettings.CharOverrides.end())
             {
                 mSettings.CharOverrides.erase(iter2);
                 pOutput->message("Filters cleared.");
-                UpdateOneModel(name);
+                UpdateOneModel(name, charMask_t());
             }
             else
             {
@@ -174,16 +325,46 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             }
         }
 
+        else if (CheckArg(1, "load"))
+        {
+            if (argcount == 2)
+                LoadSettings(mState.currentSettings.c_str());
+            else
+                LoadSettings(args[2].c_str());
+            UpdateAllModels(false);
+            pOutput->message_f("Settings loaded.  [$H%s$R]", mState.currentSettings.c_str());
+        }
+
         else if (CheckArg(1, "reload"))
         {
-            LoadSettings();
+            LoadSettings(mState.currentSettings.c_str());
             UpdateAllModels(false);
-            pOutput->message("Settings reloaded.");
+            pOutput->message_f("Settings reloaded.  [$H%s$R]", mState.currentSettings.c_str());
+        }
+
+        else if (CheckArg(1, "newconfig"))
+        {
+            if (argcount < 3)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl newconfig [Name].");
+                return true;
+            }
+            mSettings = settings_t();
+
+            mState.currentSettings = SaveSettings(args[2].c_str());
+
+            UpdateAllModels(false);
+            pOutput->message_f("Settings created.  [$H%s$R]", mState.currentSettings.c_str());
         }
 
         else if (CheckArg(1, "export"))
         {
-            SaveSettings();
+            if (argcount == 2)
+                SaveSettings(mState.currentSettings.c_str());
+            else
+            {
+                mState.currentSettings = SaveSettings(args[2].c_str());
+            }
         }
 
         return true;
@@ -204,25 +385,26 @@ bool Stylist::HandleIncomingPacket(uint16_t id, uint32_t size, const uint8_t* da
     if (id == 0x00A)
     {
         //Clear values on a zonein, since indices will have changed.
-        mRealEquipValues.clear();
+        mState.RealEquip.clear();
+
+        //Update player name and index.
+        mState.myIndex = Read16(modified, 0x08);
+        mState.myName  = std::string((const char*)(data + 0x84));
 
         //Then apply our personal changes.
-        StoreRealValues((appearance_t*)(modified + 0x44), m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0));
-        ApplyModelChanges((appearance_t*)(modified + 0x44), Read16(modified, 0x08), std::string((const char*)(data + 0x84)));
+        HandleModelPacket(modelPointers_t(modified + 0x44), mState.myIndex, mState.myName);
     }
 
     //PC updates.
     if ((id == 0x0D) && (Read16(data, 0x48) != 0))
     {
-        StoreRealValues((appearance_t*)(modified + 0x48), Read16(modified, 0x08));
-        ApplyModelChanges((appearance_t*)(modified + 0x48), Read16(modified, 0x08), std::string((const char*)(data + 0x5A)));
+        HandleModelPacket(modelPointers_t(modified + 0x48), Read16(modified, 0x08), std::string((const char*)(data + 0x5A)));
 	}
 
     //Self updates.
 	if (id == 0x51)
     {
-        StoreRealValues((appearance_t*)(modified + 0x04), m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0));
-        ApplyModelChanges((appearance_t*)(modified + 0x04), m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0), std::string(m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberName(0)));
+        HandleModelPacket(modelPointers_t(modified + 0x04), mState.myIndex, mState.myName);
 	}
 
 	return false;
