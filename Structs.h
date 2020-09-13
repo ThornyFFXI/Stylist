@@ -130,14 +130,16 @@ struct settings_t
     bool NoBlinkSelf;
     bool NoBlinkTarget;
     bool NoBlinkOthers;
+    charMask_t DefaultOverride;
     std::map<std::string, charMask_t> CharOverrides;
-    std::map<uint16_t, singleFilter_t> ModelFilters[10];
 
     settings_t()
         : NoBlinkSelf(true)
         , NoBlinkTarget(true)
         , NoBlinkOthers(false)
-        , CharOverrides(std::map<std::string, charMask_t>()) { }
+        , DefaultOverride(charMask_t())
+        , CharOverrides(std::map<std::string, charMask_t>())
+    {}
 };
 
 struct state_t

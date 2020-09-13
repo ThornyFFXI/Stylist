@@ -48,11 +48,17 @@ When enabled, prevents your current target from blinking except when adding or r
 * /sl others [Optional: On/Off]<br>
 When enabled, prevents all players from blinking except when adding or removing filters or using /sl blink.
 
-* /sl add [Required: Character Name] [Required: Equipment Slot] [Required: Model]<br>
-Adds a filter, forcing the specified slot to show the specified model for the specified character instead of what they actually have equipped.
+* /sl add [Required: Equipment Slot] [Required: Model]<br>
+Adds a slot filter, forcing the specified slot to show the specified model for all characters unless a character-specific or model specific filter overrides it.
 
-* /sl remove [Required: Character Name] [Required: Equipment Slot]<br>
-Removes a filter, allowing the specified character to display their real equipment in the specified slot.
+* /sl remove [Required: Equipment Slot]<br>
+Removes a slot filter.
+
+* /sl addc [Required: Character Name] [Required: Equipment Slot] [Required: Model]<br>
+Adds a character-specific slot filter, forcing the specified slot to show the specified model for the specified character instead of what they actually have equipped.
+
+* /sl removec [Required: Character Name] [Required: Equipment Slot]<br>
+Removes a character-specific slot filter.
 
 * /sl addmodel [Required: Equipment Slot] [Required: Initial Model] [Required: Target Model]<br>
 Adds a global model filter, changing the initial model to the target model for all characters.

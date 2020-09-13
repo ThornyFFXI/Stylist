@@ -84,9 +84,59 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
 
         else if (CheckArg(1, "add"))
         {
+            if (argcount < 4)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl add [Slot] [Model].");
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[2]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[2].c_str());
+                return true;            
+            }
+            uint16_t model = GetModelId(slot, args[3]);
+            if (model == UINT16_MAX)
+            {
+                pOutput->error_f("Invalid model specified. [$H%s$R]", args[3].c_str());
+                return true;
+            }
+
+            //Create our mask.
+            singleMask_t newMask;
+            newMask.Override                                  = true;
+            newMask.Value                                     = model;
+            newMask.Text                                      = args[3];
+
+            mSettings.DefaultOverride.SlotMasks[slot] = newMask;
+            UpdateAllModels(false);
+            pOutput->message("Filter added.");
+        }
+
+        else if (CheckArg(1, "remove"))
+        {
+            if (argcount < 3)
+            {
+                pOutput->error("Invalid format.  Correct usage: /sl remove [Slot].");
+                return true;
+            }
+            uint8_t slot = GetModelTable(args[2]);
+            if (slot == UINT8_MAX)
+            {
+                pOutput->error_f("Invalid slot specified. [$H%s$R]", args[2].c_str());
+                return true;
+            }
+
+            mSettings.DefaultOverride.SlotMasks[slot] = singleMask_t();
+            pOutput->message("Filter removed.");
+            UpdateAllModels(false);
+        }
+
+        else if (CheckArg(1, "addc"))
+        {
             if (argcount < 5)
             {
-                pOutput->error("Invalid format.  Correct usage: /sl add [Name] [Slot] [Model].");
+                pOutput->error("Invalid format.  Correct usage: /sl addc [Name] [Slot] [Model].");
                 return true;
             }
             std::string name(FormatName(args[2]));
@@ -94,7 +144,7 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             if (slot == UINT8_MAX)
             {
                 pOutput->error_f("Invalid slot specified. [$H%s$R]", args[3].c_str());
-                return true;            
+                return true;
             }
             uint16_t model = GetModelId(slot, args[4]);
             if (model == UINT16_MAX)
@@ -105,9 +155,9 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
 
             //Create our mask.
             singleMask_t newMask;
-            newMask.Override                                  = true;
-            newMask.Value                                     = model;
-            newMask.Text                                      = args[4];
+            newMask.Override = true;
+            newMask.Value    = model;
+            newMask.Text     = args[4];
 
             //Save our mask and update our model.
             std::map<std::string, charMask_t>::iterator iter2 = mSettings.CharOverrides.find(name);
@@ -119,7 +169,7 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             else
             {
                 charMask_t newChar;
-                newChar.SlotMasks[slot]    = newMask;
+                newChar.SlotMasks[slot] = newMask;
                 mSettings.CharOverrides.insert(std::make_pair(name, newChar));
                 UpdateOneModel(name, newChar);
             }
@@ -127,11 +177,11 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             pOutput->message("Filter added.");
         }
 
-        else if (CheckArg(1, "remove"))
+        else if (CheckArg(1, "removec"))
         {
             if (argcount < 4)
             {
-                pOutput->error("Invalid format.  Correct usage: /sl remove [Name] [Slot].");
+                pOutput->error("Invalid format.  Correct usage: /sl removec [Name] [Slot].");
                 return true;
             }
             std::string name(FormatName(args[2]));
@@ -182,7 +232,7 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
             }
 
             //Add to settings.
-            (mSettings.ModelFilters[slot])[model] = singleFilter_t(newModel, args[3], args[4]);
+            (mSettings.DefaultOverride.ModelFilters[slot])[model] = singleFilter_t(newModel, args[3], args[4]);
             UpdateAllModels(false);
             pOutput->message("Filter added.");
         }
@@ -206,10 +256,10 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
                 pOutput->error_f("Invalid model specified. [$H%s$R]", args[3].c_str());
                 return true;
             }
-            std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.ModelFilters[slot].find(model);
-            if (iter != mSettings.ModelFilters[slot].end())
+            std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.DefaultOverride.ModelFilters[slot].find(model);
+            if (iter != mSettings.DefaultOverride.ModelFilters[slot].end())
             {
-                mSettings.ModelFilters->erase(iter);
+                mSettings.DefaultOverride.ModelFilters->erase(iter);
                 UpdateAllModels(false);
                 pOutput->message("Filter removed.");
             }

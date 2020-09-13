@@ -66,6 +66,13 @@ void Stylist::ApplyModelChanges(modelPointers_t pointers, charMask_t overrides, 
     //Start with our most current values for what the slot actually contains.
     modelValues_t workingValues = realValues;
 
+    //Apply global slot overrides.
+    for (int x = 0; x < 10; x++)
+    {
+        if (mSettings.DefaultOverride.SlotMasks[x].Override)
+            workingValues.Values[x] = mSettings.DefaultOverride.SlotMasks[x].Value;
+    }
+
     //Apply character-specific slot overrides.
     for (int x = 0; x < 10; x++)
     {
@@ -85,8 +92,8 @@ void Stylist::ApplyModelChanges(modelPointers_t pointers, charMask_t overrides, 
             workingValues.Values[x] = iter->second.Model;
             continue;
         }
-        iter = mSettings.ModelFilters[x].find(realValues.Values[x]);
-        if (iter != mSettings.ModelFilters[x].end())
+        iter = mSettings.DefaultOverride.ModelFilters[x].find(realValues.Values[x]);
+        if (iter != mSettings.DefaultOverride.ModelFilters[x].end())
             workingValues.Values[x] = iter->second.Model;
     }
 

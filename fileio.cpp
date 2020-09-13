@@ -221,6 +221,7 @@ void Stylist::LoadSettings(const char* fileName)
         return;
     }
     mState.currentSettings = buffer;
+    mSettings.DefaultOverride = charMask_t();
 
     xml_node<>* Node = XMLReader->first_node("stylist");
     if (Node)
@@ -315,8 +316,21 @@ void Stylist::LoadSettings(const char* fileName)
                 if (targetmodel == UINT16_MAX)
                     continue;
 
-                (mSettings.ModelFilters[slot])[model] = singleFilter_t(targetmodel, attr->value(), Node->value());
+                (mSettings.DefaultOverride.ModelFilters[slot])[model] = singleFilter_t(targetmodel, attr->value(), Node->value());
             }
+        }
+
+        else
+        {
+            uint8_t slot = GetModelTable(Node->name());
+            if (slot == UINT8_MAX)
+                continue;
+
+            uint16_t model = GetModelId(slot, Node->value());
+            if (model == UINT16_MAX)
+                continue;
+
+            mSettings.DefaultOverride.SlotMasks[slot] = singleMask_t(true, model, Node->value());
         }
     }
 
@@ -362,6 +376,22 @@ std::string Stylist::SaveSettings(const char* fileName)
     outstream << "</noblinkothers>\n";
     outstream << "\t</settings>\n\n";
 
+    for (int x = 0; x < 10; x++)
+    {
+        if (!mSettings.DefaultOverride.SlotMasks[x].Override)
+            continue;
+
+        outstream << "\t<" << GetSlotString(x) << ">" << mSettings.DefaultOverride.SlotMasks[x].Text << "</" << GetSlotString(x) << ">\n";
+    }
+
+    for (int x = 0; x < 10; x++)
+    {
+        for (std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.DefaultOverride.ModelFilters[x].begin(); iter != mSettings.DefaultOverride.ModelFilters[x].end(); iter++)
+        {
+            outstream << "\t<filter item=\"" << iter->second.Initial << "\" slot=\"" << GetSlotString(x) << "\">" << iter->second.Target << "</filter>\n";
+        }
+    }
+
     for (std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.begin(); iter != mSettings.CharOverrides.end(); iter++)
     {
         outstream << "\t<player name=\"" << iter->first << "\">\n";
@@ -382,15 +412,7 @@ std::string Stylist::SaveSettings(const char* fileName)
             }
         }
 
-        outstream << "\t</player>\n\n";    
-    }
-
-    for (int x = 0; x < 10; x++)
-    {
-        for (std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.ModelFilters[x].begin(); iter != mSettings.ModelFilters[x].end(); iter++)
-        {
-            outstream << "\t\t<filter item=\"" << iter->second.Initial << "\" slot=\"" << GetSlotString(x) << "\">" << iter->second.Target << "</filter>\n";
-        }
+        outstream << "\t</player>\n\n";
     }
 
     outstream << "</stylist>";
