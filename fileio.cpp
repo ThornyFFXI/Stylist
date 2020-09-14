@@ -1,6 +1,5 @@
 #include "Stylist.h"
-#include "thirdparty\rapidxml.hpp"
-#include <fstream>
+#include "..\common\thirdparty\rapidxml.hpp"
 
 using namespace rapidxml;
 
@@ -10,50 +9,13 @@ void Stylist::InitModelInfo()
     char buffer[1024];
     sprintf_s(buffer, 1024, "%s\\resources\\stylist\\modelinfo.xml", m_AshitaCore->GetInstallPath());
 
-    //If resource XML doesn't exist, throw an error.
-    if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(buffer))
-    {
-        pOutput->error("Resource xml does not exist!");
+    //Attempt to load and parse XML.
+    char* File = NULL;
+    xml_document<>* XMLReader = pSettings->LoadXml(buffer, File);
+    if (XMLReader == NULL)
         return;
-    }
 
-    std::ifstream Reader(buffer, ios::in | ios::binary | ios::ate);
-    if (!Reader.is_open())
-    {
-        pOutput->error_f("Failed to read file.  [$H%s$R]", buffer);
-        return;
-    }
-
-    long Size  = Reader.tellg();
-    char* File = new char[Size + 1];
-    Reader.seekg(0, ios::beg);
-    Reader.read(File, Size);
-    Reader.close();
-    File[Size] = '\0';
-
-    xml_document<>* XMLReader = new xml_document<>();
-    try
-    {
-        XMLReader->parse<0>(File);
-    }
-    catch (const rapidxml::parse_error& e)
-    {
-        int line = static_cast<long>(std::count(File, e.where<char>(), '\n') + 1);
-        stringstream error;
-        error << "Parse error in resource XML[$H" << e.what() << "$R] at line $H" << line << "$R.";
-        pOutput->error(error.str().c_str());
-        delete XMLReader;
-        delete[] File;
-        return;
-    }
-    catch (...)
-    {
-        pOutput->error("Failed to parse resource XML.");
-        delete XMLReader;
-        delete[] File;
-        return;
-    }
-
+    //Read in model info from XML.
     xml_node<>* Node = XMLReader->first_node("modelinfo");
     if (Node)
         Node = Node->first_node();
@@ -133,94 +95,38 @@ void Stylist::InitModelInfo()
     delete[] File;
     delete XMLReader;
 }
-void Stylist::LoadSettings(const char* fileName)
+void Stylist::InitSettings()
 {
     //Reset settings.
     mSettings = settings_t();
 
-    //Create path to settings XML.
-    char buffer[1024];
-    sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
+    //Get path to settings.
+    bool SettingsExists;
+    std::string SettingsFile = pSettings->GetDefaultSettingsPath(&SettingsExists);
 
-    //Ensure directories exist, making them if not.
-    string makeDirectory(buffer);
-    size_t nextDirectory = makeDirectory.find("\\");
-    nextDirectory        = makeDirectory.find("\\", nextDirectory + 1);
-    while (nextDirectory != string::npos)
+    if (!SettingsExists)
     {
-        string currentDirectory = makeDirectory.substr(0, nextDirectory + 1);
-        if ((!CreateDirectory(currentDirectory.c_str(), NULL)) && (ERROR_ALREADY_EXISTS != GetLastError()))
-        {
-            pOutput->error_f("Could not find or create folder. [$H%s$R]", currentDirectory.c_str());
-            return;
-        }
-        nextDirectory = makeDirectory.find("\\", nextDirectory + 1);
-    }
-
-    std::ifstream inputStream;
-    sprintf_s(buffer, 1024, "%s", fileName);
-    inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
-    if (!inputStream.is_open())
-    {
-        sprintf_s(buffer, 1024, "%s.xml", fileName);
-        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
-    }
-    if (!inputStream.is_open())
-    {
-        sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s", m_AshitaCore->GetInstallPath(), fileName);
-        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
-    }
-    if (!inputStream.is_open())
-    {
-        sprintf_s(buffer, 1024, "%sconfig\\stylist\\%s.xml", m_AshitaCore->GetInstallPath(), fileName);
-        inputStream = ifstream(buffer, ios::in | ios::binary | ios::ate);
-    }
-    if (!inputStream.is_open())
-    {
-        if (strcmp(fileName, "settings.xml") == 0)
-        {
-            SaveSettings("settings.xml");
-            sprintf_s(buffer, 1024, "%sconfig\\stylist\\settings.xml", m_AshitaCore->GetInstallPath());
-            mState.currentSettings = buffer;
-        }
-        else
-        {
-            pOutput->error_f("Failed to read file.  Loading defaults.  [$H%s$R]", buffer);
-            LoadSettings("settings.xml");
-        }
+        pSettings->CreateDirectories(SettingsFile.c_str());
         return;
     }
 
-    long Size  = inputStream.tellg();
-    char* File = new char[Size + 1];
-    inputStream.seekg(0, ios::beg);
-    inputStream.read(File, Size);
-    inputStream.close();
-    File[Size]             = '\0';
+    //Yea, I know this wastes a filesystem::exists call, it doesn't really matter.
+    LoadSettings(SettingsFile.c_str());
+}
+bool Stylist::LoadSettings(const char* fileName)
+{
+    //Reset settings.
+    mSettings = settings_t();
 
-    xml_document<>* XMLReader = new xml_document<>();
-    try
+    std::string SettingsFile = pSettings->GetInputSettingsPath(fileName);
+    if (SettingsFile == "FILE_NOT_FOUND")
     {
-        XMLReader->parse<0>(File);
+        pOutput->error_f("Could not find settings file.  Loading defaults.  [$H%s$R]", fileName);
+        InitSettings();
+        return false;
     }
-    catch (const rapidxml::parse_error& e)
-    {
-        int line = static_cast<long>(std::count(File, e.where<char>(), '\n') + 1);
-        stringstream error;
-        error << "Parse error in settings XML [$H" << e.what() << "$R] at line $H" << line << "$R.";
-        pOutput->error(error.str().c_str());
-        delete XMLReader;
-        delete[] File;
-        return;
-    }
-    catch (...)
-    {
-        pOutput->error("Failed to parse settings XML.");
-        delete XMLReader;
-        delete[] File;
-        return;
-    }
-    mState.currentSettings = buffer;
+
+    xml_document<>* XMLReader = pSettings->LoadSettingsXml(SettingsFile);
     mSettings.DefaultOverride = charMask_t();
 
     xml_node<>* Node = XMLReader->first_node("stylist");
@@ -334,24 +240,18 @@ void Stylist::LoadSettings(const char* fileName)
         }
     }
 
-    delete[] File;
-    delete XMLReader;
+    return true;
 }
 
-std::string Stylist::SaveSettings(const char* fileName)
+void Stylist::SaveSettings(const char* fileName)
 {
-    char buffer[1024];
-    if (strstr(fileName, ".") == fileName + (strlen(fileName) - 4))
-        sprintf_s(buffer, 1024, "%s\\config\\stylist\\%s", m_AshitaCore->GetInstallPath(), fileName);
-    else
-        sprintf_s(buffer, 1024, "%s\\config\\stylist\\%s.xml", m_AshitaCore->GetInstallPath(), fileName);
+    std::string Path = pSettings->GetInputWritePath(fileName);
 
-    ofstream outstream(buffer);
+    ofstream outstream(Path.c_str());
     if (!outstream.is_open())
     {
-        pOutput->error_f("Failed to write file.  Loading defaults.  [%s]", buffer);
-        LoadSettings("settings.xml");
-        return mState.currentSettings;
+        pOutput->error_f("Failed to write file.  [%s]", Path.c_str());
+        return;
     }
 
     outstream << "<stylist>\n";
@@ -376,12 +276,19 @@ std::string Stylist::SaveSettings(const char* fileName)
     outstream << "</noblinkothers>\n";
     outstream << "\t</settings>\n\n";
 
+    bool WroteFilter = false;
     for (int x = 0; x < 10; x++)
     {
         if (!mSettings.DefaultOverride.SlotMasks[x].Override)
             continue;
 
         outstream << "\t<" << GetSlotString(x) << ">" << mSettings.DefaultOverride.SlotMasks[x].Text << "</" << GetSlotString(x) << ">\n";
+        WroteFilter = true;
+    }
+    if (WroteFilter)
+    {
+        outstream << "\n";
+        WroteFilter = false;
     }
 
     for (int x = 0; x < 10; x++)
@@ -389,7 +296,13 @@ std::string Stylist::SaveSettings(const char* fileName)
         for (std::map<uint16_t, singleFilter_t>::iterator iter = mSettings.DefaultOverride.ModelFilters[x].begin(); iter != mSettings.DefaultOverride.ModelFilters[x].end(); iter++)
         {
             outstream << "\t<filter item=\"" << iter->second.Initial << "\" slot=\"" << GetSlotString(x) << "\">" << iter->second.Target << "</filter>\n";
+            WroteFilter = true;
         }
+    }
+    if (WroteFilter)
+    {
+        outstream << "\n";
+        WroteFilter = false;
     }
 
     for (std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.begin(); iter != mSettings.CharOverrides.end(); iter++)
@@ -417,6 +330,5 @@ std::string Stylist::SaveSettings(const char* fileName)
 
     outstream << "</stylist>";
     outstream.close();
-    pOutput->message_f("Wrote settings XML. [$H%s$R]", buffer);
-    return buffer;
+    pOutput->message_f("Wrote settings XML. [$H%s$R]", Path.c_str());
 }

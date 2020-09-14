@@ -180,7 +180,8 @@ start "C:\Program Files\Git\git-bash.exe"</Command>
     <ClCompile Include="models.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Output.h" />
+    <ClInclude Include="..\common\Output.h" />
+    <ClInclude Include="..\common\Settings.h" />
     <ClInclude Include="Structs.h" />
     <ClInclude Include="Stylist.h" />
   </ItemGroup>

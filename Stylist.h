@@ -6,8 +6,10 @@
 #endif
 
 #include "C:\Program Files (x86)\Ashita 4\plugins\sdk\Ashita.h"
+#include "..\common\Utilities.h"
+#include "..\common\Settings.h"
 #include "Structs.h"
-#include "Output.h"
+#include "..\common\Output.h"
 #include <map>
 
 class Stylist : IPlugin
@@ -17,6 +19,7 @@ public:
     settings_t mSettings;
     state_t mState;
     OutputHelpers* pOutput;
+    SettingsHelper* pSettings;
 
 public:
     const char* GetName(void) const override
@@ -37,7 +40,7 @@ public:
     }
     double GetVersion(void) const override
     {
-        return 1.03f;
+        return 1.04f;
     }
     int32_t GetPriority(void) const override
     {
@@ -59,8 +62,9 @@ public:
 
     //fileio.cpp
     void InitModelInfo();
-    void LoadSettings(const char* fileName);
-    std::string SaveSettings(const char* fileName);
+    void InitSettings();
+    bool LoadSettings(const char* fileName);
+    void SaveSettings(const char* fileName);
 
     //models.cpp
     std::string GetSlotString(uint8_t slot);

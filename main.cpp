@@ -18,8 +18,9 @@ bool Stylist::Initialize(IAshitaCore* core, ILogManager* logger, const uint32_t 
     m_LogManager = logger;
     m_PluginId = id;
     pOutput      = new OutputHelpers(core, logger, this->GetName());
+    pSettings    = new SettingsHelper(core, pOutput, this->GetName());
     InitModelInfo();
-    LoadSettings("settings.xml");
+    InitSettings();
     InitializeState();
     UpdateAllModels(false);
 
@@ -29,6 +30,7 @@ bool Stylist::Initialize(IAshitaCore* core, ILogManager* logger, const uint32_t 
 void Stylist::Release(void)
 {
     UpdateAllModels(true);
+    delete pSettings;
     delete pOutput;
 }
 
@@ -377,19 +379,25 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
 
         else if (CheckArg(1, "load"))
         {
+            bool result = false;
             if (argcount == 2)
-                LoadSettings(mState.currentSettings.c_str());
+                result = LoadSettings(pSettings->GetLoadedXmlPath().c_str());
             else
-                LoadSettings(args[2].c_str());
+                result = LoadSettings(args[2].c_str());
+            if (result)
+            {
+                pOutput->message_f("Settings loaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());            
+            }
             UpdateAllModels(false);
-            pOutput->message_f("Settings loaded.  [$H%s$R]", mState.currentSettings.c_str());
         }
 
         else if (CheckArg(1, "reload"))
         {
-            LoadSettings(mState.currentSettings.c_str());
+            if (LoadSettings(pSettings->GetLoadedXmlPath().c_str()))
+            {
+                pOutput->message_f("Settings reloaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());            
+            }
             UpdateAllModels(false);
-            pOutput->message_f("Settings reloaded.  [$H%s$R]", mState.currentSettings.c_str());
         }
 
         else if (CheckArg(1, "newconfig"))
@@ -400,20 +408,17 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
                 return true;
             }
             mSettings = settings_t();
-
-            mState.currentSettings = SaveSettings(args[2].c_str());
-
             UpdateAllModels(false);
-            pOutput->message_f("Settings created.  [$H%s$R]", mState.currentSettings.c_str());
+            SaveSettings(args[2].c_str());
         }
 
         else if (CheckArg(1, "export"))
         {
             if (argcount == 2)
-                SaveSettings(mState.currentSettings.c_str());
+                SaveSettings(pSettings->GetLoadedXmlPath().c_str());
             else
             {
-                mState.currentSettings = SaveSettings(args[2].c_str());
+                SaveSettings(args[2].c_str());
             }
         }
 

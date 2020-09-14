@@ -32,10 +32,13 @@
     <ClInclude Include="Stylist.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Output.h">
+    <ClInclude Include="Structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Structs.h">
+    <ClInclude Include="..\common\Output.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\Settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
