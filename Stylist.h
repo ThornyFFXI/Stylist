@@ -40,7 +40,7 @@ public:
     }
     double GetVersion(void) const override
     {
-        return 1.04f;
+        return 1.06f;
     }
     int32_t GetPriority(void) const override
     {
@@ -62,7 +62,7 @@ public:
 
     //fileio.cpp
     void InitModelInfo();
-    void InitSettings();
+    void LoadDefaultXml(bool forceReload);
     bool LoadSettings(const char* fileName);
     void SaveSettings(const char* fileName);
 

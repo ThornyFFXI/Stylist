@@ -20,8 +20,8 @@ bool Stylist::Initialize(IAshitaCore* core, ILogManager* logger, const uint32_t 
     pOutput      = new OutputHelpers(core, logger, this->GetName());
     pSettings    = new SettingsHelper(core, pOutput, this->GetName());
     InitModelInfo();
-    InitSettings();
     InitializeState();
+    LoadDefaultXml(false);
     UpdateAllModels(false);
 
     return true;
@@ -379,24 +379,17 @@ bool Stylist::HandleCommand(int32_t mode, const char* command, bool injected)
 
         else if (CheckArg(1, "load"))
         {
-            bool result = false;
             if (argcount == 2)
-                result = LoadSettings(pSettings->GetLoadedXmlPath().c_str());
+                LoadDefaultXml(true);
             else
-                result = LoadSettings(args[2].c_str());
-            if (result)
-            {
-                pOutput->message_f("Settings loaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());            
-            }
+                LoadSettings(args[2].c_str());
+
             UpdateAllModels(false);
         }
 
         else if (CheckArg(1, "reload"))
         {
-            if (LoadSettings(pSettings->GetLoadedXmlPath().c_str()))
-            {
-                pOutput->message_f("Settings reloaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());            
-            }
+            LoadSettings(pSettings->GetLoadedXmlPath().c_str());
             UpdateAllModels(false);
         }
 
@@ -444,7 +437,12 @@ bool Stylist::HandleIncomingPacket(uint16_t id, uint32_t size, const uint8_t* da
 
         //Update player name and index.
         mState.myIndex = Read16(modified, 0x08);
-        mState.myName  = std::string((const char*)(data + 0x84));
+        std::string Name = std::string((const char*)(data + 0x84));
+        if (Name != mState.myName)
+        {
+            mState.myName = Name;
+            LoadDefaultXml(false);
+        }
 
         //Then apply our personal changes.
         HandleModelPacket(modelPointers_t(modified + 0x44), mState.myIndex, mState.myName);

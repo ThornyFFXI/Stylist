@@ -106,6 +106,7 @@ void Stylist::ApplyModelChanges(modelPointers_t pointers, charMask_t overrides, 
 
 void Stylist::InitializeState()
 {
+    mState.myName    = "NO_NAME";
     uint16_t myIndex = m_AshitaCore->GetMemoryManager()->GetParty()->GetMemberTargetIndex(0);
     if (myIndex > 0)
     {
@@ -120,8 +121,6 @@ void Stylist::InitializeState()
     {
         if (!IsEntityRendered(x))
             continue;
-
-
 
         //Pull real appearance from memory.
         Ashita::FFXI::entity_t* entity = m_AshitaCore->GetMemoryManager()->GetEntity()->GetRawEntity(x);

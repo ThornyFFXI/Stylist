@@ -95,36 +95,40 @@ void Stylist::InitModelInfo()
     delete[] File;
     delete XMLReader;
 }
-void Stylist::InitSettings()
+void Stylist::LoadDefaultXml(bool forceReload)
 {
     //Reset settings.
     mSettings = settings_t();
 
-    //Get path to settings.
-    bool SettingsExists;
-    std::string SettingsFile = pSettings->GetDefaultSettingsPath(&SettingsExists);
-
-    if (!SettingsExists)
-    {
-        pSettings->CreateDirectories(SettingsFile.c_str());
+    //Get path to settings XML.
+    std::string Path = pSettings->GetCharacterSettingsPath(mState.myName.c_str());
+    if ((Path == pSettings->GetLoadedXmlPath()) && (!forceReload))
         return;
-    }
 
-    //Yea, I know this wastes a filesystem::exists call, it doesn't really matter.
-    LoadSettings(SettingsFile.c_str());
+    if (Path == "FILE_NOT_FOUND")
+    {
+        Path = pSettings->GetDefaultSettingsPath();
+        pSettings->CreateDirectories(Path.c_str());
+        SaveSettings("default.xml");
+    }
+    else
+    {
+        //Yea, I know this wastes a filesystem::exists call, it doesn't really matter.
+        LoadSettings(Path.c_str());
+    }
 }
 bool Stylist::LoadSettings(const char* fileName)
 {
-    //Reset settings.
-    mSettings = settings_t();
-
     std::string SettingsFile = pSettings->GetInputSettingsPath(fileName);
     if (SettingsFile == "FILE_NOT_FOUND")
     {
         pOutput->error_f("Could not find settings file.  Loading defaults.  [$H%s$R]", fileName);
-        InitSettings();
+        LoadDefaultXml(true);
         return false;
     }
+
+    //Reset settings.
+    mSettings = settings_t();
 
     xml_document<>* XMLReader = pSettings->LoadSettingsXml(SettingsFile);
     mSettings.DefaultOverride = charMask_t();
@@ -240,9 +244,9 @@ bool Stylist::LoadSettings(const char* fileName)
         }
     }
 
+    pOutput->message_f("Settings loaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());
     return true;
 }
-
 void Stylist::SaveSettings(const char* fileName)
 {
     std::string Path = pSettings->GetInputWritePath(fileName);
