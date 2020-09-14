@@ -40,7 +40,7 @@ public:
     }
     double GetVersion(void) const override
     {
-        return 1.06f;
+        return 1.07f;
     }
     int32_t GetPriority(void) const override
     {
@@ -63,8 +63,8 @@ public:
     //fileio.cpp
     void InitModelInfo();
     void LoadDefaultXml(bool forceReload);
-    bool LoadSettings(const char* fileName);
-    void SaveSettings(const char* fileName);
+    void LoadSettings(const char* Name);
+    void SaveSettings(const char* Name);
 
     //models.cpp
     std::string GetSlotString(uint8_t slot);

@@ -117,14 +117,14 @@ void Stylist::LoadDefaultXml(bool forceReload)
         LoadSettings(Path.c_str());
     }
 }
-bool Stylist::LoadSettings(const char* fileName)
+void Stylist::LoadSettings(const char* fileName)
 {
     std::string SettingsFile = pSettings->GetInputSettingsPath(fileName);
     if (SettingsFile == "FILE_NOT_FOUND")
     {
         pOutput->error_f("Could not find settings file.  Loading defaults.  [$H%s$R]", fileName);
         LoadDefaultXml(true);
-        return false;
+        return;
     }
 
     //Reset settings.
@@ -245,11 +245,11 @@ bool Stylist::LoadSettings(const char* fileName)
     }
 
     pOutput->message_f("Settings loaded.  [$H%s$R]", pSettings->GetLoadedXmlPath().c_str());
-    return true;
 }
-void Stylist::SaveSettings(const char* fileName)
+void Stylist::SaveSettings(const char* Name)
 {
-    std::string Path = pSettings->GetInputWritePath(fileName);
+    std::string Path = pSettings->GetInputWritePath(Name);
+    pSettings->CreateDirectories(Path.c_str());
 
     ofstream outstream(Path.c_str());
     if (!outstream.is_open())
