@@ -108,7 +108,6 @@ void Stylist::LoadDefaultXml(bool forceReload)
     if (Path == "FILE_NOT_FOUND")
     {
         Path = pSettings->GetDefaultSettingsPath();
-        pSettings->CreateDirectories(Path.c_str());
         SaveSettings("default.xml");
     }
     else
@@ -117,12 +116,12 @@ void Stylist::LoadDefaultXml(bool forceReload)
         LoadSettings(Path.c_str());
     }
 }
-void Stylist::LoadSettings(const char* fileName)
+void Stylist::LoadSettings(const char* Name)
 {
-    std::string SettingsFile = pSettings->GetInputSettingsPath(fileName);
+    std::string SettingsFile = pSettings->GetInputSettingsPath(Name);
     if (SettingsFile == "FILE_NOT_FOUND")
     {
-        pOutput->error_f("Could not find settings file.  Loading defaults.  [$H%s$R]", fileName);
+        pOutput->error_f("Could not find settings file.  Loading defaults.  [$H%s$R]", Name);
         LoadDefaultXml(true);
         return;
     }
@@ -131,12 +130,23 @@ void Stylist::LoadSettings(const char* fileName)
     mSettings = settings_t();
 
     xml_document<>* XMLReader = pSettings->LoadSettingsXml(SettingsFile);
-    mSettings.DefaultOverride = charMask_t();
+    if (XMLReader == NULL)
+    {
+        pOutput->error_f("Could not load settings file.  Resetting to defaults.  [$H%s$R]", SettingsFile.c_str());
+        return;    
+    }
 
+    //Make sure XML has a stylist node.
     xml_node<>* Node = XMLReader->first_node("stylist");
-    if (Node)
-        Node = Node->first_node();
-    for (; Node; Node = Node->next_sibling())
+    if (!Node)
+    {
+        pSettings->UnloadSettings();
+        pOutput->error_f("Settings file did not have a stylist node at root level.  Resetting to defaults.  [$H%s$R]", SettingsFile.c_str());
+        return;
+    }
+
+    //Parse settings.
+    for (Node = Node->first_node(); Node; Node = Node->next_sibling())
     {
         if (_stricmp(Node->name(), "settings") == 0)
         {

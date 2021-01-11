@@ -5,7 +5,7 @@
 #pragma once
 #endif
 
-#include "C:\Program Files (x86)\Ashita 4\plugins\sdk\Ashita.h"
+#include "C:\Ashita 4\plugins\sdk\Ashita.h"
 #include "..\common\Utilities.h"
 #include "..\common\Settings.h"
 #include "Structs.h"
@@ -40,7 +40,7 @@ public:
     }
     double GetVersion(void) const override
     {
-        return 1.07f;
+        return 1.08f;
     }
     int32_t GetPriority(void) const override
     {
@@ -71,7 +71,6 @@ public:
     uint8_t GetModelTable(std::string text);
     uint16_t GetModelId(uint8_t table, std::string text);
     bool IsPositiveInteger(const char* input);
-    std::string FormatName(std::string name);
 
     //modelmods.cpp
     void HandleModelPacket(modelPointers_t pointers, uint16_t index, std::string pName);

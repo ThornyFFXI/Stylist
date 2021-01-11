@@ -73,15 +73,3 @@ bool Stylist::IsPositiveInteger(const char* input)
     }
     return true;
 }
-std::string Stylist::FormatName(std::string name)
-{
-    std::string newName;
-    for (int x = 0; x < name.length(); x++)
-    {
-        if (x == 0)
-            newName += toupper(name[x]);
-        else
-            newName += tolower(name[x]);
-    }
-    return newName;
-}
