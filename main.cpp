@@ -452,7 +452,7 @@ bool Stylist::HandleIncomingPacket(uint16_t id, uint32_t size, const uint8_t* da
     if ((id == 0x0D) && (Read16(data, 0x48) != 0))
     {
         const char* name = (const char*)(data + 0x5A);
-        if (Ashita::BinaryData::UnpackBitsBE((uint8_t*)data, 0x0A, 3, 1) != 0)
+        if ((Read16(data, 0x08) >= 1024) && (Read16(data, 0x08) < 1792))
         {
             HandleModelPacket(modelPointers_t(modified + 0x48), Read16(modified, 0x08), std::string(name));
         }
