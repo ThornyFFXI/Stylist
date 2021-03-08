@@ -19,15 +19,20 @@ void Stylist::HandleModelPacket(modelPointers_t pointers, uint16_t index, std::s
         }
     }
 
-    //Look up the character's name, so we can see if they have a mask in config.
-    std::map<std::string, charMask_t>::iterator iter;
+    //Look up the character's name, so we can see if they have a mask.
+    std::map<std::string, charMask_t>::iterator iter = mSettings.CharOverrides.end();
     if (pName.length() >= 3)
+    {
         iter = mSettings.CharOverrides.find(pName);
+    }
     else if (isRendered)
+    {
         iter = mSettings.CharOverrides.find(std::string(m_AshitaCore->GetMemoryManager()->GetEntity()->GetName(index)));
+    }
 
-    //Create a blank mask in case we didn't find it.
+    //Create a blank mask
     charMask_t mask;
+
     //If we found an entry for the char, record that.
     if (iter != mSettings.CharOverrides.end())
         mask = iter->second;
