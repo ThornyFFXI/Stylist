@@ -29,23 +29,23 @@ public:
 public:
     const char* GetName(void) const override
     {
-        return u8"Stylist";
+        return "Stylist";
     }
     const char* GetAuthor(void) const override
     {
-        return u8"Thorny";
+        return "Thorny";
     }
     const char* GetDescription(void) const override
     {
-        return u8"Insert description here.";
+        return "Insert description here.";
     }
     const char* GetLink(void) const override
     {
-        return u8"Insert link here.";
+        return "Insert link here.";
     }
     double GetVersion(void) const override
     {
-        return 1.12f;
+        return 1.13f;
     }
     int32_t GetPriority(void) const override
     {
