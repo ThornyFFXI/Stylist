@@ -108,7 +108,10 @@ void Stylist::LoadDefaultXml(bool forceReload)
     if (Path == "FILE_NOT_FOUND")
     {
         Path = pSettings->GetDefaultSettingsPath();
-        SaveSettings("default.xml");
+        if (std::filesystem::exists(Path))
+            LoadSettings("default.xml");
+        else
+            SaveSettings("default.xml");
     }
     else
     {
