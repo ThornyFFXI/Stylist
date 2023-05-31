@@ -164,8 +164,8 @@ void Stylist::LoadSettings(const char* Name)
                 }
                 if (_stricmp(SubNode->name(), "noblinkothers") == 0)
                 {
-                    if (_stricmp(SubNode->value(), "false") == 0)
-                        mSettings.NoBlinkOthers = false;
+                    if (_stricmp(SubNode->value(), "true") == 0)
+                        mSettings.NoBlinkOthers = true;
                 }
             }
         }
