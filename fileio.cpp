@@ -97,13 +97,13 @@ void Stylist::InitModelInfo()
 }
 void Stylist::LoadDefaultXml(bool forceReload)
 {
-    //Reset settings.
-    mSettings = settings_t();
-
     //Get path to settings XML.
     std::string Path = pSettings->GetCharacterSettingsPath(mState.myName.c_str());
     if ((Path == pSettings->GetLoadedXmlPath()) && (!forceReload))
         return;
+
+    //Reset settings.
+    mSettings = settings_t();
 
     if (Path == "FILE_NOT_FOUND")
     {
