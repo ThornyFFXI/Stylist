@@ -10,6 +10,14 @@ Stylist is a plugin that allows you to customize any player character’s appear
 * Faces are specified using a numeric value from 0 to 15.
 * All configuration can be done using the typed commands and exports, but you may also directly modify a setting file, see xmllayout.htm for details.
 
+
+# Installation
+Do not download the entire repository as a zip unless you plan to compile the plugin yourself. That will not provide the files you need.<br>
+
+1. Download the plugin release zip that matches your ashita installation's interface version from the releases area on the right side.
+2. Extract the entire zip to your ashita folder(the folder containing ashita.dll and ashita-cli.exe). Everything will fall into place.
+3. Load with '/load stylist' or add the same line to your startup script. Stylist is a plugin not an addon, so do not use '/addon load'.
+
 #### Default values for slots are:
 * Race
 * Face
