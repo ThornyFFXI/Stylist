@@ -5,7 +5,7 @@
 #pragma once
 #endif
 
-#include "C:\Ashita 4\plugins\sdk\Ashita.h"
+#include "Ashita.h"
 #include <chrono>
 #include <list>
 #include <map>
