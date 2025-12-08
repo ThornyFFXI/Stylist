@@ -1,4 +1,5 @@
 LIBRARY "Stylist"
 EXPORTS
 	expCreatePlugin
+	expDestroyPlugin
 	expGetInterfaceVersion
